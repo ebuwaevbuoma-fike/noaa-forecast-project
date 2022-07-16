@@ -208,6 +208,7 @@ reg = Ridge(alpha=.1)
 
 # Create a list called predictors, of variables which predict target (tomorrow's temp_max)
 predictors = ["precip", "temp_max", "temp_min"]
+predictors
 
 # Subset our data into train set (data up to 2020-12-31) and test set (data on and after 2021-01-01)
 train = core_weather.loc[:"2020-12-31"]
@@ -226,7 +227,8 @@ predictions = reg.predict(test[predictors])
 # Recall that target is our absolute value, and we just now generated predictions
 from sklearn.metrics import mean_absolute_error
 
-mean_absolute_error(test["target"], predictions)
+error = mean_absolute_error(test["target"], predictions)
+error
 #5.098811008584857
 # On average, we are 5.09 off the temp_max in our "target" variable
 
@@ -249,15 +251,39 @@ reg.coef_
 # Precipitation has a negative impact on predicted temp_max, temp_max of previous day has a huge impact on predicted temperature, while
 # temp_min has little effect on the predicted temp_max (this makes sense!)
 
+# Create additional predictors
+# Average temp_max of the preceding 30 days using rolling mean
+core_weather["month_max"] = core_weather["temp_max"].rolling(30).mean()
+# The first 30 rows will be NaN because they are the input
+
+# Difference between daily max and monthly average of preceding 30 days
+# How different is the monthly temperature from the temperature for each given date?
+core_weather["month_day_max"] = core_weather["month_max"] - core_weather["temp_max"]
+
+# Difference between daily max and min temperatures
+# Is there a wide range between temp_max and temp_min? Could this influence tomorrow's temperature
+core_weather["max_min"] = core_weather["temp_max"] - core_weather["temp_min"]
+core_weather
+
+# Itemize your new list of predictors
+predictors = ["precip", "temp_max", "temp_min", "month_day_max", "max_min"]
+predictors
+
+# Remove the first 30 rows (NaNs due to monthly_max)
+core_weather = core_weather.iloc[30:, :].copy()
+core_weather.head()
+
 # Create a function to run our predictive model in a single step
 """
-takes our predictors, core weather and regression model
+takes our predictors, core weather and regression model, 
+outputs mean absolute error and predicted and actual temp_max
 """
-def create_predictions(predictors, core_weather, reg):
+def create_predictions (predictors, core_weather, reg) :
     train = core_weather.loc[:"2020-12-31"]
     test = core_weather.loc["2021-01-01":]
 
     reg.fit(train[predictors], train["target"])
+
     predictions = reg.predict(test[predictors])
 
     error = mean_absolute_error(test["target"], predictions)
@@ -266,28 +292,90 @@ def create_predictions(predictors, core_weather, reg):
     combined.columns = ["actual", "predictions"]
     return error, combined
 
-# Create additional predictors
-# Average temp_max of the preceding 30 days using rolling mean
-core_weather["month_max"] = core_weather["temp_max"].rolling(30).mean()
-# The first 30 rows will be NaN because they are the input
-
-# Temperature difference in monthly mean temperature for each date
-# How different is the monthly temperature from the temperature for each given date?
-core_weather["month_day_max"] = core_weather["month_max"] / core_weather["temp_max"]
-
-# Ratio of temp_max and temp_min
-# Is there a wide range between temp_max and temp_min? Could this influence tomorrow's temperature
-core_weather["max_min"] = core_weather["temp_max"] / core_weather["temp_min"]
-
-# Itemize your new list of predictors
-predictors = ["precip", "temp_max", "temp_min", "month_day_max", "max_min"]
-
-# Remove the first 30 rows (NaNs due to monthly_max)
-core_weather = core_weather.iloc[30:, :].copy()
-core_weather
+create_predictions
 
 error, combined = create_predictions(predictors, core_weather, reg)
+#ValueError: Input X contains infinity or a value too large for dtype('float64').
+
+#Inspect for missing values, large values (inf)
+core_weather.apply(pd.isnull).sum()
+#precip           0
+#temp_max         0
+#temp_min         0
+#target           0
+#month_max        0
+#month_day_max    0
+#max_min          0
+#dtype: int64
+
+# Inspect minimum and maximum values for each column
+max (core_weather['month_max']) #99.0
+min (core_weather['month_max']) #32.03333333333333
+min (core_weather['month_day_max']) #0.5557291666666667
+max (core_weather['max_min']) #inf. Check formulation of max_min variable
+min (core_weather['max_min']) #-49.0
+
+# Run predictive model
+error, combined = create_predictions(predictors, core_weather, reg)
 error
+#4.9985507303079615
+
+#On average, our predicted temperature is 4.99 Fahrenheit away from the "target" temperature for tomorrow
+
+# Inspect the combined dataframe
+combined.plot()
+
+# Create additional predictors
+# Monthly average temperature, created by grouping historical temp=max by month (e.g., all January, all February)
+# then, compute the average using only antecedent observations (in the monthly groups)
+core_weather["monthly_avg"] = core_weather["temp_max"].groupby(core_weather.index.month).apply(lambda x: x.expanding(1).mean())
+core_weather
+
+# Day of the year average temperature, formulated as above (days in this function are indexed 1 to 366)
+# we compute the average temperature using all antecedent indexed days (e.g., day 30s between 1960 to 2022)
+core_weather["day_of_year_avg"] = core_weather["temp_max"].groupby(core_weather.index.day_of_year).apply(lambda x: x.expanding(1).mean())
+
+# Update list of predictors
+predictors = ["precip", "temp_max", "temp_min", "month_day_max", "max_min", "monthly_avg", "day_of_year_avg"]
+predictors
+
+# Run predictive model, using additional monthly_avg and day_of_year_avg predictors
+error, combined = create_predictions(predictors, core_weather, reg)
+error
+#5.002351284516955
+
+# Inspect coefficients of regression
+reg.coef_
+#array([-6.21599411e+00,  4.88225791e-01,  2.32425796e-01,  3.82305143e-03,
+#        2.55799771e-01,  1.23088787e-01,  1.48004048e-01])
+
+# Which columns correlate with our target temperature?
+core_weather.corr()["target"]
+#precip            -0.172360
+#temp_max           0.940206 #strong positive correlation with target temp
+#temp_min           0.788415
+#target             1.000000
+#month_max          0.848413
+#month_day_max     -0.355387
+#max_min            0.639360
+#monthly_avg        0.866734
+#day_of_year_avg    0.882514
+
+# What is the absolute difference between target and predicted temperatures?
+# Create a new column called "diff", inspect
+combined["diff"] = (combined["actual"] - combined["predictions"]).abs()
+combined.sort_values("diff", ascending=False).head()
+#           actual  predictions       diff
+#DATE
+#2021-05-19    50.0    74.709735  24.709735
+#2022-02-20    37.0    58.006015  21.006015
+#2021-10-17    49.0    69.548185  20.548185
+#2022-05-19    61.0    80.652674  19.652674
+#2022-02-14    44.0    63.207093  19.207093
+
+
+
+
 
 
 
