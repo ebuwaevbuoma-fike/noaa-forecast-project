@@ -4,27 +4,27 @@
 **Last Edited: 07/15/2022**
 
 **Purpose:**
-Predict local weather (temperature parameters) using ridge regression modeling. This project was inspired by Dataquest.io's repository.
+Predict local weather (temperature parameters) using ridge regression modeling. 
 
 **Data Source**
 
 NOAA Public Data Sets, Daily Weather
 https://www.ncdc.noaa.gov/cdo-web/search
 
-**Variables**
+**Key Variables**
 
 - STATION_NAME (max 50 characters) is the name of the station (usually city/airport name). Optional
 output field.
 - DATE is the year of the record (4 digits) followed by month (2 digits) and day (2 digits).
 
-The five core weather values:
+The five core weather variables:
 - PRCP = Precipitation (mm or inches as per user preference, inches to hundredths on Daily Form pdf file)
 - SNOW = Snowfall (mm or inches as per user preference, inches to tenths on Daily Form pdf file)
 - SNWD = Snow depth (mm or inches as per user preference, inches on Daily Form pdf file)
 - TMAX = Maximum temperature (Fahrenheit or Celsius as per user preference, Fahrenheit to tenths on Daily Form pdf file
 - TMIN = Minimum temperature (Fahrenheit or Celsius as per user preference, Fahrenheit to tenths on Daily Form pdf file
 
-All other weather values:
+All other weather variables:
 
 - ACMC = Average cloudiness midnight to midnight from 30-second ceilometer data (percent)
 - ACMH = Average cloudiness midnight to midnight from manual observations (percent)
@@ -74,4 +74,8 @@ All other weather values:
 - 01 = Fog, ice fog or freezing fog (may include heavy fog)
 - 03 = Thunder
 
-Detailed documentation: https://www.ncei.noaa.gov/pub/data/cdo/documentation/GHCND_documentation.pdf
+Detailed data documentation: https://www.ncei.noaa.gov/pub/data/cdo/documentation/GHCND_documentation.pdf
+
+**Credit**
+
+This project was inspired by Dataquest.io's repository of projects: https://github.com/dataquestio
