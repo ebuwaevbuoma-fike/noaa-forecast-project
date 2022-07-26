@@ -7,7 +7,7 @@
 import pandas as pd
 
 # Import weather csv file as weather
-weather = pd.read_csv ("/Volumes/GoogleDrive/My Drive/Time at Brown School/Summer 2022/Correlation One Data Science for All/Resources/noaa-forecast-project/reno_weather.csv", index_col= "DATE")
+weather = pd.read_csv ("/Resources/noaa-forecast-project/reno_weather.csv", index_col= "DATE")
 weather
 
 #Inspect data for the Jan 1st to 31st, 1960
